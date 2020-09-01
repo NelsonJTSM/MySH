@@ -1,6 +1,7 @@
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
+use std::process::Command;
 
 #[derive(Debug)]
 enum ShellFunction {
@@ -14,7 +15,7 @@ enum ShellFunction {
 }
 
 #[derive(Debug)]
-struct Command<'a> {
+struct ShellCommand<'a> {
     function: ShellFunction,
     name: &'a str,
     args: Vec<&'a str>,
@@ -28,13 +29,6 @@ struct Shell {
 
 // ShellState handles how the shell changes states.
 impl Shell {
-    /*
-    fn current_directory(&mut self) -> &mut PathBuf {
-        // Assumes directory doesn't have weird chars.
-        &mut self.directory
-    }
-    */
-
     fn new(directory: PathBuf) -> Shell {
         Shell {
             directory,
@@ -60,8 +54,16 @@ impl Shell {
         }
     }
 
-    fn run_command(&mut self, command: Command) {
-        self.add_to_history(command.name);
+    fn start_program(&self, program_name: &str, program_args: Vec<&&str>) {
+        let mut program = Command::new(program_name).args(program_args).spawn().unwrap();
+        
+        // println!("PID: {}", program.id());
+        // drop(program);
+        // program.wait().unwrap();
+    }
+
+    fn run_command(&mut self, command: ShellCommand, input: &str) {
+        self.add_to_history(input);
 
         match command.function {
             ShellFunction::WhereAmI => self.where_am_i(),
@@ -88,6 +90,15 @@ impl Shell {
                     None => {},
                 }
             },
+            ShellFunction::Start => {
+                match command.args.get(0) {
+                    Some(arg) => {
+                        let program_args: Vec<&&str> = command.args.iter().skip(1).collect();
+                        self.start_program(&arg, program_args);
+                    },
+                    None => {},
+                }
+            },
             _ => {
                 // Better command handling?
                 println!("Command not implemented yet.");
@@ -110,7 +121,9 @@ fn main() {
         match io::stdin().read_line(&mut input) {
             Ok(_n) => {
                 let command = interpret_command(&input.as_str());
-                shell.run_command(command);
+
+                // TODO: Add the parsed input to the history, instead of just the trimmed input.
+                shell.run_command(command, input.as_str().trim_end());
             }
             Err(error) => println!("error: {}", error),
         }
@@ -124,7 +137,7 @@ fn start_shell_start() -> Shell {
     Shell::new(directory)
 }
 
-fn interpret_command(input: &str) -> Command {
+fn interpret_command(input: &str) -> ShellCommand {
     let mut tokens = input.split_whitespace();
 
     // TODO: Handle error that occurs when no command is entered.
@@ -133,7 +146,7 @@ fn interpret_command(input: &str) -> Command {
     let args: Vec<&str> = tokens.collect();
     let function = str_to_function(name);
 
-    Command { function, args, name}
+    ShellCommand { function, args, name}
 }
 
 fn str_to_function(command: &str) -> ShellFunction {
