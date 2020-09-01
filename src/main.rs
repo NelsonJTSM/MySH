@@ -10,6 +10,8 @@ enum ShellFunction {
     History,
     ByeBye,
     Start,
+    Background,
+    Exterminate,
     UnknownFunction,
     NoFunction,
 }
@@ -55,11 +57,27 @@ impl Shell {
     }
 
     fn start_program(&self, program_name: &str, program_args: Vec<&&str>) {
-        let mut program = Command::new(program_name).args(program_args).spawn().unwrap();
-        
+        let mut program = Command::new(program_name)
+            .args(program_args)
+            .spawn()
+            .unwrap();
         // println!("PID: {}", program.id());
         // drop(program);
-        // program.wait().unwrap();
+        program.wait().unwrap();
+    }
+
+    fn background_program(&self, program_name: &str, program_args: Vec<&&str>) {
+        let mut program = Command::new(program_name)
+            .args(program_args)
+            .spawn()
+            .unwrap();
+        println!("PID: {}", program.id());
+    }
+
+    fn exterminate_program(&self, pid: i32) {
+        unsafe {
+            libc::kill(pid, libc::SIGKILL);
+        };
     }
 
     fn run_command(&mut self, command: ShellCommand, input: &str) {
@@ -70,10 +88,10 @@ impl Shell {
             ShellFunction::MoveToDir => {
                 let target_dir = PathBuf::from(command.args.get(0).unwrap());
                 self.move_to_dir(&target_dir);
-            },
+            }
             ShellFunction::ByeBye => {
                 std::process::exit(0);
-            },
+            }
             ShellFunction::History => {
                 if command.args.len() == 0 {
                     self.print_history();
@@ -86,23 +104,37 @@ impl Shell {
                             println!("Clearing history...");
                             self.history.clear();
                         }
-                    },
-                    None => {},
+                    }
+                    None => {}
+                }
+            }
+            ShellFunction::Start => match command.args.get(0) {
+                Some(arg) => {
+                    let program_args: Vec<&&str> = command.args.iter().skip(1).collect();
+                    self.start_program(&arg, program_args);
+                }
+                None => {}
+            },
+            ShellFunction::Exterminate => match command.args.get(0) {
+                Some(arg) => {
+                    let pid = String::from(*arg).parse::<i32>().unwrap();
+                    self.exterminate_program(pid);
+                }
+                None => {
+                    println!("Argument required for {}", command.name);
                 }
             },
-            ShellFunction::Start => {
-                match command.args.get(0) {
-                    Some(arg) => {
-                        let program_args: Vec<&&str> = command.args.iter().skip(1).collect();
-                        self.start_program(&arg, program_args);
-                    },
-                    None => {},
+            ShellFunction::Background => match command.args.get(0) {
+                Some(arg) => {
+                    let program_args: Vec<&&str> = command.args.iter().skip(1).collect();
+                    self.background_program(&arg, program_args);
                 }
+                None => {}
             },
             _ => {
                 // Better command handling?
                 println!("Command not implemented yet.");
-            },
+            }
         }
     }
 }
@@ -146,7 +178,11 @@ fn interpret_command(input: &str) -> ShellCommand {
     let args: Vec<&str> = tokens.collect();
     let function = str_to_function(name);
 
-    ShellCommand { function, args, name}
+    ShellCommand {
+        function,
+        args,
+        name,
+    }
 }
 
 fn str_to_function(command: &str) -> ShellFunction {
@@ -159,6 +195,8 @@ fn str_to_function(command: &str) -> ShellFunction {
         "history" => ShellFunction::History,
         "byebye" => ShellFunction::ByeBye,
         "start" => ShellFunction::Start,
+        "background" => ShellFunction::Background,
+        "exterminate" => ShellFunction::Exterminate,
         _ => ShellFunction::UnknownFunction,
     }
 }
