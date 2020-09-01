@@ -26,9 +26,15 @@ struct ShellState {
 
 // ShellState handles how the shell changes states.
 impl ShellState {
+    /*
     fn current_directory(&mut self) -> &mut PathBuf {
         // Assumes directory doesn't have weird chars.
         &mut self.directory
+    }
+    */
+
+    fn move_to_dir(&mut self, target_dir: &PathBuf) {
+        self.directory = self.directory.join(target_dir);
     }
 
     fn where_am_i(&self) {
@@ -41,16 +47,19 @@ fn main() {
 
     let mut shell_state = start_shell_start();
 
-    print!("{}", prompt);
-    io::stdout().flush().unwrap();
+    loop {
+        print!("{}", prompt);
+        io::stdout().flush().unwrap();
 
-    let mut input = String::new();
-    match io::stdin().read_line(&mut input) {
-        Ok(n) => {
-            let command = interpret_command(&input.as_str());
-            run_command(command, shell_state);
+        let mut input = String::new();
+
+        match io::stdin().read_line(&mut input) {
+            Ok(n) => {
+                let command = interpret_command(&input.as_str());
+                run_command(command, &mut shell_state);
+            }
+            Err(error) => println!("error: {}", error),
         }
-        Err(error) => println!("error: {}", error),
     }
 }
 
@@ -58,13 +67,17 @@ fn start_shell_start() -> ShellState {
     // Assumes env::current_dir() is valid.
     let directory = std::env::current_dir().unwrap();
 
-    ShellState {directory}
+    ShellState { directory }
 }
 
-fn run_command(command: Command, mut state: ShellState) {
+fn run_command(command: Command, state: &mut ShellState) {
     match command.function {
-        ShellFunction::WhereAmI => {state.where_am_i()},
-        _ => {},
+        ShellFunction::WhereAmI => state.where_am_i(),
+        ShellFunction::MoveToDir => {
+            let target_dir = PathBuf::from(command.args.get(0).unwrap());
+            state.move_to_dir(&target_dir);
+        }
+        _ => {}
     }
 }
 
@@ -77,7 +90,7 @@ fn interpret_command(input: &str) -> Command {
     let args: Vec<&str> = tokens.collect();
     let function = str_to_function(cmd);
 
-    Command {function, args}
+    Command { function, args }
 }
 
 fn str_to_function(command: &str) -> ShellFunction {
