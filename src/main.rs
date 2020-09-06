@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum ShellFunction {
     MoveToDir,
     WhereAmI,
@@ -13,6 +13,7 @@ enum ShellFunction {
     Background,
     Exterminate,
     ExterminateAll,
+    Repeat,
     UnknownFunction,
     NoFunction,
 }
@@ -94,7 +95,9 @@ impl Shell {
     }
 
     fn run_command(&mut self, command: ShellCommand, input: &str) {
-        self.add_to_history(input);
+        if !input.is_empty() {
+            self.add_to_history(input);
+        }
 
         match command.function {
             ShellFunction::WhereAmI => self.where_am_i(),
@@ -146,6 +149,33 @@ impl Shell {
             },
             ShellFunction::ExterminateAll => {
                 self.exterminate_all();
+            }
+            ShellFunction::Repeat => match (command.args.get(0), command.args.get(1)) {
+                (Some(arg), Some(cmd)) => {
+                    let n = String::from(*arg).parse::<u32>().unwrap();
+                    let function = str_to_function(*cmd);
+                    
+                    // TODO: Handle arguments better.
+                    // Right now I am cloning like crazy,
+                    // reducing the efficiency.
+                    
+                    let mut new_args = command.args.clone();
+                    new_args.remove(0);
+                    new_args.remove(0);
+
+                    for _ in 0..n {
+                        let shell_command = ShellCommand {
+                            function: function,
+                            name: *cmd,
+                            args: new_args.clone(),
+                        };
+
+                        self.run_command(shell_command, *cmd);
+                    }
+                }
+                (_, _) => {
+                    println!("Incorrect use of repeat.");
+                }
             },
             _ => {
                 // Better command handling?
@@ -215,6 +245,7 @@ fn str_to_function(command: &str) -> ShellFunction {
         "background" => ShellFunction::Background,
         "exterminate" => ShellFunction::Exterminate,
         "exterminateall" => ShellFunction::ExterminateAll,
+        "repeat" => ShellFunction::Repeat,
         _ => ShellFunction::UnknownFunction,
     }
 }
