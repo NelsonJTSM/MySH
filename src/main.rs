@@ -25,6 +25,46 @@ struct ShellCommand<'a> {
     args: Vec<&'a str>,
 }
 
+impl<'a> ShellCommand<'a> {
+    fn new(command: &str) -> ShellCommand {
+        ShellCommand::interpret_command(command)
+    }
+
+    fn interpret_command(input: &str) -> ShellCommand {
+        let mut tokens = input.split_whitespace();
+    
+        // TODO: Handle error that occurs when no command is entered.
+        // Code currently panics.
+        let name: &str = tokens.next().unwrap().trim_end();
+        let args: Vec<&str> = tokens.collect();
+        let function = ShellCommand::str_to_function(name);
+    
+        ShellCommand {
+            function,
+            args,
+            name,
+        }
+    }
+    
+    fn str_to_function(command: &str) -> ShellFunction {
+        // TODO: Ignore lowercase for commands.
+    
+        match command {
+            "" => ShellFunction::NoFunction,
+            "movetodir" => ShellFunction::MoveToDir,
+            "whereami" => ShellFunction::WhereAmI,
+            "history" => ShellFunction::History,
+            "byebye" => ShellFunction::ByeBye,
+            "start" => ShellFunction::Start,
+            "background" => ShellFunction::Background,
+            "exterminate" => ShellFunction::Exterminate,
+            "exterminateall" => ShellFunction::ExterminateAll,
+            "repeat" => ShellFunction::Repeat,
+            _ => ShellFunction::UnknownFunction,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Shell {
     directory: PathBuf,
@@ -153,7 +193,7 @@ impl Shell {
             ShellFunction::Repeat => match (command.args.get(0), command.args.get(1)) {
                 (Some(arg), Some(cmd)) => {
                     let n = String::from(*arg).parse::<u32>().unwrap();
-                    let function = str_to_function(*cmd);
+                    let function = ShellCommand::str_to_function(*cmd);
                     
                     // TODO: Handle arguments better.
                     // Right now I am cloning like crazy,
@@ -198,7 +238,7 @@ fn main() {
 
         match io::stdin().read_line(&mut input) {
             Ok(_n) => {
-                let command = interpret_command(&input.as_str());
+                let command = ShellCommand::new(&input.as_str());
 
                 // TODO: Add the parsed input to the history, instead of just the trimmed input.
                 shell.run_command(command, input.as_str().trim_end());
@@ -214,38 +254,4 @@ fn start_shell_start() -> Shell {
     let directory = std::env::current_dir().unwrap();
 
     Shell::new(directory)
-}
-
-fn interpret_command(input: &str) -> ShellCommand {
-    let mut tokens = input.split_whitespace();
-
-    // TODO: Handle error that occurs when no command is entered.
-    // Code currently panics.
-    let name: &str = tokens.next().unwrap().trim_end();
-    let args: Vec<&str> = tokens.collect();
-    let function = str_to_function(name);
-
-    ShellCommand {
-        function,
-        args,
-        name,
-    }
-}
-
-fn str_to_function(command: &str) -> ShellFunction {
-    // TODO: Ignore lowercase for commands.
-
-    match command {
-        "" => ShellFunction::NoFunction,
-        "movetodir" => ShellFunction::MoveToDir,
-        "whereami" => ShellFunction::WhereAmI,
-        "history" => ShellFunction::History,
-        "byebye" => ShellFunction::ByeBye,
-        "start" => ShellFunction::Start,
-        "background" => ShellFunction::Background,
-        "exterminate" => ShellFunction::Exterminate,
-        "exterminateall" => ShellFunction::ExterminateAll,
-        "repeat" => ShellFunction::Repeat,
-        _ => ShellFunction::UnknownFunction,
-    }
 }
