@@ -12,6 +12,7 @@ enum ShellFunction {
     Start,
     Background,
     Exterminate,
+    ExterminateAll,
     UnknownFunction,
     NoFunction,
 }
@@ -27,6 +28,7 @@ struct ShellCommand<'a> {
 struct Shell {
     directory: PathBuf,
     history: Vec<String>,
+    pids: Vec<i32>,
 }
 
 // ShellState handles how the shell changes states.
@@ -35,6 +37,7 @@ impl Shell {
         Shell {
             directory,
             history: Vec::new(),
+            pids: Vec::new(),
         }
     }
 
@@ -56,22 +59,32 @@ impl Shell {
         }
     }
 
-    fn start_program(&self, program_name: &str, program_args: Vec<&&str>) {
+    fn start_program(&mut self, program_name: &str, program_args: Vec<&&str>) {
         let mut program = Command::new(program_name)
             .args(program_args)
             .spawn()
             .unwrap();
-        // println!("PID: {}", program.id());
-        // drop(program);
+
         program.wait().unwrap();
+        self.pids.push(program.id() as i32);
     }
 
-    fn background_program(&self, program_name: &str, program_args: Vec<&&str>) {
-        let mut program = Command::new(program_name)
+    fn background_program(&mut self, program_name: &str, program_args: Vec<&&str>) {
+        let program = Command::new(program_name)
             .args(program_args)
             .spawn()
             .unwrap();
+        self.pids.push(program.id() as i32);
+
         println!("PID: {}", program.id());
+    }
+
+    fn exterminate_all(&mut self) {
+        for pid in &self.pids {
+            self.exterminate_program(*pid);
+        }
+
+        self.pids.clear();
     }
 
     fn exterminate_program(&self, pid: i32) {
@@ -131,6 +144,9 @@ impl Shell {
                 }
                 None => {}
             },
+            ShellFunction::ExterminateAll => {
+                self.exterminate_all();
+            },
             _ => {
                 // Better command handling?
                 println!("Command not implemented yet.");
@@ -164,6 +180,7 @@ fn main() {
 
 fn start_shell_start() -> Shell {
     // Assumes env::current_dir() is valid.
+    // TODO: Handle this error.
     let directory = std::env::current_dir().unwrap();
 
     Shell::new(directory)
@@ -197,6 +214,7 @@ fn str_to_function(command: &str) -> ShellFunction {
         "start" => ShellFunction::Start,
         "background" => ShellFunction::Background,
         "exterminate" => ShellFunction::Exterminate,
+        "exterminateall" => ShellFunction::ExterminateAll,
         _ => ShellFunction::UnknownFunction,
     }
 }
