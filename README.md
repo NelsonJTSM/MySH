@@ -76,6 +76,14 @@ exterminate [PID]
 
 Immediately terminates the program with the specific PID.
 
+### Exterminate All
+
+```
+exterminateall
+```
+
+Exterminates all the programs started by MySH.
+
 ## TODO Commands
 
 ### Repeat
@@ -85,11 +93,3 @@ repeat [n] [command] ...
 ```
 
 Runs the given shell command ```n``` amount of times.
-
-### Exterminate All
-
-```
-exterminateall
-```
-
-Exterminates all the programs started by MySH.
