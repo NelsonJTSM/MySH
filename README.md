@@ -84,8 +84,6 @@ exterminateall
 
 Exterminates all the programs started by MySH.
 
-## TODO Commands
-
 ### Repeat
 
 ```
@@ -93,3 +91,8 @@ repeat [n] [command] ...
 ```
 
 Runs the given shell command ```n``` amount of times.
+
+## TODO Commands
+
+[] Better error handling  
+[] Change the directory hierarchy
