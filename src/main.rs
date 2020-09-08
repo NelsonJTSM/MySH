@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 enum ShellFunction {
     MoveToDir,
     WhereAmI,
@@ -32,23 +32,19 @@ impl<'a> ShellCommand<'a> {
 
     fn interpret_command(input: &str) -> ShellCommand {
         let mut tokens = input.split_whitespace();
-    
-        // TODO: Handle error that occurs when no command is entered.
-        // Code currently panics.
-        let name: &str = tokens.next().unwrap().trim_end();
+        
+        let name: &str = tokens.next().unwrap_or("");
         let args: Vec<&str> = tokens.collect();
         let function = ShellCommand::str_to_function(name);
-    
+        
         ShellCommand {
             function,
             args,
             name,
         }
     }
-    
     fn str_to_function(command: &str) -> ShellFunction {
         // TODO: Ignore lowercase for commands.
-    
         match command {
             "" => ShellFunction::NoFunction,
             "movetodir" => ShellFunction::MoveToDir,
@@ -194,11 +190,9 @@ impl Shell {
                 (Some(arg), Some(cmd)) => {
                     let n = String::from(*arg).parse::<u32>().unwrap();
                     let function = ShellCommand::str_to_function(*cmd);
-                    
                     // TODO: Handle arguments better.
                     // Right now I am cloning like crazy,
                     // reducing the efficiency.
-                    
                     let mut new_args = command.args.clone();
                     new_args.remove(0);
                     new_args.remove(0);
@@ -249,9 +243,31 @@ fn main() {
 }
 
 fn start_shell_start() -> Shell {
-    // Assumes env::current_dir() is valid.
-    // TODO: Handle this error.
-    let directory = std::env::current_dir().unwrap();
+    let directory = std::env::current_dir().unwrap_or(PathBuf::default());
 
     Shell::new(directory)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_command_parsing() {
+        let input_output = vec![
+            ("", ShellFunction::NoFunction),
+            ("movetodir", ShellFunction::MoveToDir),
+            ("repeat", ShellFunction::Repeat),
+            ("repeat n start /usr/bin/alacritty", ShellFunction::Repeat),
+            ("kjdsljf", ShellFunction::UnknownFunction),
+            ("\n\n\n\n", ShellFunction::NoFunction),
+            ("\n\n\nmovetodir\n\n\n", ShellFunction::MoveToDir),
+            ("        repeat n      \n", ShellFunction::Repeat),
+        ];
+
+        for (input, expected_function) in input_output {
+            let command = ShellCommand::new(input);
+            assert_eq!(command.function, expected_function);
+        }
+    }
 }
